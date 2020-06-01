@@ -17,32 +17,41 @@ dhcpServer.bind((HOST, PORT))
 # see max value vim  /proc/sys/net/core/somaxconn
 dhcpServer.listen(128)
 
-# all clients addresses range is 192.168.0.0 -> 192.168.0.255
-clients = {}
+# all clientsTable addresses range is 192.168.0.0 -> 192.168.0.255
+clientsTable = {}
 expireTime = {}
 
 def server(mac):
     
-    if mac in clients.keys():
-        print("{} removed {} available to use.".format(mac, clients[mac]))
+    if mac in clientsTable.keys():
+        print("{} removed {} available to use.".format(mac, clientsTable[mac]))
         
-        del clients[mac]
+        del clientsTable[mac]
         del expireTime[mac]
+
+        updateTable()
         
         return bytes(str("Disconnect : {}".format(mac)), "utf-8")
-    addresses = [addr for addr in ipaddress.ip_network('192.168.0.0/24', strict=False) if addr not in clients.values()]
+    addresses = [addr for addr in ipaddress.ip_network('192.168.0.0/24', strict=False) if addr not in clientsTable.values()]
 
     # give ip address
-    clients[mac] = sorted(addresses)[0]
+    clientsTable[mac] = sorted(addresses)[0]
     expireTime[mac] = time.time() + interval 
     
-    print("{} served as {}".format(mac, clients[mac]))
+    print("{} served as {}".format(mac, clientsTable[mac]))
     
-    return bytes(str(clients[mac]), "utf-8") 
+    return bytes(str(clientsTable[mac]), "utf-8") 
+
+def updateTable():
+
+    for i, j in enumerate(clientsTable.items()):
+       clientsTable[j[0]] = ipaddress.ip_address('192.168.0.0') + i
 
 def timer():
+
     for mac, expire in expireTime.items():
         if time.time() >= expire:
+            updateTable()
             print("{} expire add 10 sec".format(mac))
             expireTime[mac] += interval
 
@@ -56,7 +65,4 @@ while True:
     
     connection.send(server(macAddress.decode("utf-8")))
     connection.close()
-
-
-
 
